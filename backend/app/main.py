@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 from typing import AsyncIterator
-
+from app.db.metadata import init_db
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -49,6 +49,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:  # noqa: ARG001
 
     try:
         settings.ensure_data_directories()
+        init_db()
+        logger.info("SQLite metadata database initialized.")
         logger.info(
             "Data directories verified: uploads=%s  vector_store=%s",
             settings.UPLOAD_DIR,
