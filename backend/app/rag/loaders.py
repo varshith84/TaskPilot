@@ -44,25 +44,49 @@ def _load_pdf(file_path: str, document_id: str, filename: str) -> list[Document]
         ))
     return docs
 
-def _load_docx(file_path: str, document_id: str, filename: str) -> list[Document]:
-    from langchain_community.document_loaders import Docx2txtLoader
-    # Docx2txtLoader reads the whole text as one document.
-    # Alternatively python-docx can be used directly for paragraph-level logic.
-    # We use LangChain's loader for simplicity, then chunk later.
-    loader = Docx2txtLoader(file_path)
-    raw_docs = loader.load()
-    
-    docs = []
-    for d in raw_docs:
-        docs.append(Document(
-            page_content=d.page_content,
+def _load_docx(
+    file_path: str,
+    document_id: str,
+    filename: str
+) -> list[Document]:
+    from docx import Document as DocxDocument
+
+    docx_file = DocxDocument(file_path)
+
+    text_parts = []
+
+    # Extract normal paragraphs
+    for paragraph in docx_file.paragraphs:
+        text = paragraph.text.strip()
+        if text:
+            text_parts.append(text)
+
+    # Extract text from tables
+    for table in docx_file.tables:
+        for row in table.rows:
+            for cell in row.cells:
+                text = cell.text.strip()
+                if text:
+                    text_parts.append(text)
+
+    content = "\n".join(text_parts).strip()
+
+    if not content:
+        raise ValueError(
+            "No extractable text found in DOCX. "
+            "The document may contain only images, scans, or unsupported text boxes."
+        )
+
+    return [
+        Document(
+            page_content=content,
             metadata={
                 "document_id": document_id,
                 "filename": filename,
-                "file_type": "docx"
-            }
-        ))
-    return docs
+                "file_type": "docx",
+            },
+        )
+    ]
 
 def _load_text(file_path: str, file_type: str, document_id: str, filename: str) -> list[Document]:
     # Read text safely handling potential encoding issues
